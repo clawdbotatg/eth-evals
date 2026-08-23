@@ -80,7 +80,7 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
     inst = mod.generate(seed)
     timeout = timeout or spec.get("timeout_seconds", 900)
 
-    workspace = Path(tempfile.mkdtemp(prefix=f"eth-eval-{scenario}-s{seed}-"))
+    workspace = Path(tempfile.mkdtemp(prefix=f"eth-evals-{scenario}-s{seed}-"))
     anvil = None
     t0 = time.time()
     try:

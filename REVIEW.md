@@ -1,4 +1,4 @@
-# eth-eval — all tasks for review
+# eth-evals — all tasks for review
 
 242 closed-book + 33 tool-track + 10 live tasks. Regenerate with `python3 gen/make_review.py`.
 

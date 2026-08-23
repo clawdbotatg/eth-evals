@@ -1,8 +1,8 @@
-# eth-eval next-step implementation report
+# eth-evals next-step implementation report
 
 **Date:** 2026-08-19  
 **Status:** proposed implementation plan  
-**Primary objective:** evolve eth-eval from a saturated closed-book Ethereum quiz into a reproducible evaluation of whether an AI can reason about Ethereum, construct and execute transactions, build and debug contracts, operate safely, and benefit from ethskills.
+**Primary objective:** evolve eth-evals from a saturated closed-book Ethereum quiz into a reproducible evaluation of whether an AI can reason about Ethereum, construct and execute transactions, build and debug contracts, operate safely, and benefit from ethskills.
 
 ## Executive recommendation
 
@@ -20,7 +20,7 @@ The first release does not need dozens of execution scenarios. Five to eight wel
 
 ## What version 2 must be able to claim
 
-After the proposed work, eth-eval should be able to answer these distinct questions:
+After the proposed work, eth-evals should be able to answer these distinct questions:
 
 - Does the model know durable Ethereum concepts without retrieval?
 - Can the agent inspect an unfamiliar Ethereum environment and determine the correct chain, contracts, state, units, and transaction intent?
@@ -135,7 +135,7 @@ Add a manifest generator that hashes every scored input:
 Suggested identifier:
 
 ```text
-eth-eval-v2.0.0+sha256:<manifest-hash>
+eth-evals-v2.0.0+sha256:<manifest-hash>
 ```
 
 Suggested result metadata:

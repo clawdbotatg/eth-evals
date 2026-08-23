@@ -1,4 +1,4 @@
-# eth-eval — orientation for the next agent
+# eth-evals — orientation for the next agent
 
 Benchmark for "can an AI actually build on Ethereum." Two halves today:
 a **closed-book knowledge quiz** (saturated — top models ~98%) and a new

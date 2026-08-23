@@ -1,4 +1,4 @@
-# eth-eval
+# eth-evals
 
 **How much Ethereum does an LLM actually know?**
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eth-eval: how much Ethereum does an LLM actually know?
+"""eth-evals: how much Ethereum does an LLM actually know?
 
 An evaluation suite that interrogates a vanilla LLM (no docs, no tools, no
 retrieval) on the working knowledge an Ethereum builder needs — the same

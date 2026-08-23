@@ -1,4 +1,4 @@
-# Authoring knowledge tasks for eth-eval
+# Authoring knowledge tasks for eth-evals
 
 Each task interrogates a **vanilla LLM with no docs and no tools** on knowledge
 asserted in an ethskills.com SKILL.md file. The point of the eval is to measure

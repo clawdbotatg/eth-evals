@@ -8,7 +8,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
 
-out = ["# eth-eval — all tasks for review", ""]
+out = ["# eth-evals — all tasks for review", ""]
 counts = {}
 for d, label in [("tasks", "closed book"), ("tasks-tools", "tool track — agent has cast"),
                  ("tasks-live", "live track — graded against mainnet at run time")]:

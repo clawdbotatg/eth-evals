@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""eth-eval live/agentic track: can an AGENT do real Ethereum work?
+"""eth-evals live/agentic track: can an AGENT do real Ethereum work?
 
 Unlike run_eval.py (vanilla model, closed book), this track runs a tool-using
 agent CLI (claude -p, codex, ...) against tasks whose answers live on mainnet

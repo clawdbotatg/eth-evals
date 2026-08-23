@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the computational tasks for eth-eval.
+"""Generate the computational tasks for eth-evals.
 
 Every answer here is COMPUTED, not authored: 4-byte selectors, ABI calldata,
 event topics, CREATE/CREATE2 addresses, EIP-55 checksums and storage slots

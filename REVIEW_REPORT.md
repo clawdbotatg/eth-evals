@@ -1,4 +1,4 @@
-# eth-eval critical review
+# eth-evals critical review
 
 **Review date:** 2026-08-16  
 **Scope:** all 243 closed-book tasks in `tasks/*.jsonl`, the grader implementation in `run_eval.py`, and the evaluation design described in `README.md`.  
