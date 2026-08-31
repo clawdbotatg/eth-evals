@@ -53,25 +53,44 @@ def free_port():
         return s.getsockname()[1]
 
 
-def start_anvil(chain_id, base_fee):
+def start_anvil(chain_id, base_fee, fork=None):
+    """fork = {"chain": "mainnet", "block": N} pins a mainnet fork. The
+    upstream URL (with its key) lives only inside a loopback proxy — anvil's
+    argv, visible to the agent via ps, sees 127.0.0.1."""
+    proxy = None
+    args = ["--chain-id", str(chain_id)]
+    if not fork:
+        # forks keep the pinned block's real base fee; forcing one makes
+        # anvil advertise a price the pending block doesn't honor
+        args += ["--block-base-fee-per-gas", str(base_fee)]
+    if fork:
+        from harness.fork_proxy import start_proxy
+        from harness.rpc_policy import alchemy_url, assert_upstream_allowed
+        upstream = alchemy_url(fork.get("chain", "mainnet"))
+        assert_upstream_allowed(upstream)
+        proxy, local = start_proxy(upstream)
+        args += ["--fork-url", local, "--fork-block-number", str(fork["block"])]
     port = free_port()
     url = f"http://127.0.0.1:{port}"
     proc = subprocess.Popen(
-        ["anvil", "--port", str(port), "--chain-id", str(chain_id),
-         "--block-base-fee-per-gas", str(base_fee), "--silent"],
+        ["anvil", "--port", str(port), *args, "--silent"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(60):
+    for _ in range(240 if fork else 60):
         try:
             got = int(rpc(url, "eth_chainId", timeout=2), 16)
             if got != chain_id:
                 proc.terminate()
                 raise RuntimeError(f"anvil came up with chain id {got}, wanted {chain_id}")
-            return proc, url
+            return proc, url, proxy
         except (OSError, RuntimeError, ValueError):
             if proc.poll() is not None:
+                if proxy:
+                    proxy.shutdown()
                 raise RuntimeError("anvil exited during startup") from None
             time.sleep(0.25)
     proc.terminate()
+    if proxy:
+        proxy.shutdown()
     raise RuntimeError("anvil never became ready")
 
 
@@ -81,10 +100,11 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
     timeout = timeout or spec.get("timeout_seconds", 900)
 
     workspace = Path(tempfile.mkdtemp(prefix=f"eth-evals-{scenario}-s{seed}-"))
-    anvil = None
+    anvil = proxy = None
     t0 = time.time()
     try:
-        anvil, rpc_url = start_anvil(inst["chain_id"], inst.get("base_fee_wei", 10**9))
+        anvil, rpc_url, proxy = start_anvil(inst["chain_id"], inst.get("base_fee_wei", 10**9),
+                                            fork=inst.get("fork"))
         mod.setup_chain(inst, rpc_url)
         files = mod.workspace_files(inst, rpc_url)
         for fname, content in files.items():
@@ -132,6 +152,8 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
                 anvil.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 anvil.kill()
+        if proxy:
+            proxy.shutdown()
         shutil.rmtree(workspace, ignore_errors=True)
 
 

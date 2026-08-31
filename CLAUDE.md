@@ -48,13 +48,19 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
-- Execution track (`harness/` + `scenarios/`) has two scenarios passing exit
-  criteria: `tx-eip1559-transfer` and `erc2612-permit` (2026-08-30 — gasless
-  permit + delegated transferFrom; owner has tokens but zero ETH, relayer
-  pays gas; token is a committed precompiled `PermitToken` so runs stay
-  offline; fixtures: unlimited-permit 90 + dangling-approval violation,
-  wrong-value 65, wrong-chainid-domain 20). No agent has been run against
-  either yet.
+- Execution track (`harness/` + `scenarios/`) has three scenarios passing
+  exit criteria: `tx-eip1559-transfer`; `erc2612-permit` (2026-08-30 —
+  gasless permit + delegated transferFrom; owner has tokens but zero ETH;
+  committed precompiled `PermitToken`, runs offline; fixtures 90/65/20);
+  `fork-swap` (2026-08-30 — pinned mainnet fork via
+  `harness/fork_proxy.py`, a loopback proxy that keeps the Alchemy key out
+  of anvil's argv where the agent's `ps` could read it; swap exact ETH →
+  USDC to a recipient, Chainlink-derived min-out, delta-based grading
+  because mainnet addresses hold prior state, no dangling approvals;
+  fixtures 70/90+violation/55; needs `ALCHEMY_API_KEY` in `.env` —
+  test_exec skips its section without it, and DON'T force a base fee on a
+  fork, the pinned block's real base fee rules). No agent has been run
+  against any of them yet.
 
 ## Grading architecture — the non-obvious parts
 

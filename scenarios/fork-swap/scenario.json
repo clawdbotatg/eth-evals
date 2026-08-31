@@ -1,0 +1,21 @@
+{
+  "id": "fork-swap",
+  "version": 1,
+  "track": "transactions",
+  "family": "fork-defi",
+  "timeout_seconds": 900,
+  "network": {"mode": "anvil-fork", "chain_id": 1, "fork": true, "writes_allowed": true},
+  "agent": {"network_access": "local-anvil-only"},
+  "artifacts": ["submission.json"],
+  "grading": {
+    "milestones": {
+      "submission_valid": 10,
+      "swap_tx_correct": 15,
+      "output_min": 30,
+      "no_overspend": 20,
+      "approval_hygiene": 10,
+      "usdc_reported": 15
+    },
+    "capability_gate": "fork_swap"
+  }
+}
