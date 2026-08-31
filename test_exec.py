@@ -149,6 +149,29 @@ check("withdrawal-bricking patch fails functional only",
 check("vault fixtures: three distinct failure signatures",
       len({frozenset(failed(x)) for x in (np, fe, bb)}) == 3)
 
+# --- repo-repair scenario (forge-graded; no chain) ----------------------------
+SCN5 = "repo-repair"
+SDIR5 = HERE / "scenarios" / SCN5
+for seed in (1, 4):
+    r = run_attempt(SCN5, seed, f"python3 {SDIR5 / 'reference.py'}", name="reference")
+    check(f"repo-repair reference seed {seed} scores 100",
+          r["score"] == r["max_score"] and not r["safety_violations"],
+          json.dumps({k: v["detail"] for k, v in r["milestones"].items() if not v["pass"]}))
+
+co = run_attempt(SCN5, 3, f"python3 {SDIR5 / 'fixtures' / 'broken_compile_only.py'}", name="compileonly")
+check("compile-only fix builds but fails all four behaviors",
+      failed(co) == {"cost_correct", "stale_reverts", "proceeds_accounting", "owner_only_withdraw"},
+      str(failed(co)))
+
+na = run_attempt(SCN5, 3, f"python3 {SDIR5 / 'fixtures' / 'broken_no_access.py'}", name="noaccess")
+check("missing owner check fails owner_only only", failed(na) == {"owner_only_withdraw"}, str(failed(na)))
+
+ns = run_attempt(SCN5, 3, f"python3 {SDIR5 / 'fixtures' / 'broken_no_staleness.py'}", name="nostale")
+check("missing freshness check fails stale_reverts only", failed(ns) == {"stale_reverts"}, str(failed(ns)))
+
+check("repo-repair fixtures: three distinct failure signatures",
+      len({frozenset(failed(x)) for x in (co, na, ns)}) == 3)
+
 # --- agent env is scrubbed ----------------------------------------------------
 import os
 os.environ["ALCHEMY_API_KEY"] = "supersecret-test-key"

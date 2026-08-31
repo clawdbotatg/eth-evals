@@ -48,8 +48,9 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
-- Execution track (`harness/` + `scenarios/`) has three scenarios passing
-  exit criteria: `tx-eip1559-transfer`; `erc2612-permit` (2026-08-30 —
+- Execution track (`harness/` + `scenarios/`) has five scenarios passing
+  exit criteria across three tracks (transactions / security / build):
+  `tx-eip1559-transfer`; `erc2612-permit` (2026-08-30 —
   gasless permit + delegated transferFrom; owner has tokens but zero ETH;
   committed precompiled `PermitToken`, runs offline; fixtures 90/65/20);
   `fork-swap` (2026-08-30 — pinned mainnet fork via
@@ -67,7 +68,13 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
   canonical exploits × a hidden functional suite; no forge-std, tests declare
   `Vm` inline; the exploit_is_real milestone catches cheatcode-faked exploits
   by re-running them against a safe vault; fixtures 70/70/75; forge-only, no
-  chain). No agent has been run against any of them yet.
+  chain); and `repo-repair` (2026-08-30 — Build track; a Foundry repo whose
+  `src/Sale.sol` has five planted defects: compile error (`latestAnswer` vs
+  `latestRoundData`), decimal-scaling (6/18/8-dec: cost = amt*price/1e20),
+  missing oracle-staleness check, missing proceeds accounting, missing owner
+  check; `Mocks.sol`/`Registry.sol` are correct localization noise; hidden
+  functional suite per milestone; fixtures 15/80/80). No agent has been run
+  against any of them yet.
 
   Two forge gotchas the vault scenario hit: (1) `vm.prank(x); f(g())` — the
   prank is consumed by the INNER call `g()`, not `f`; read into a var first.

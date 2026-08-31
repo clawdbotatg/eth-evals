@@ -1,0 +1,20 @@
+{
+  "id": "repo-repair",
+  "version": 1,
+  "track": "build",
+  "family": "foundry-repair",
+  "timeout_seconds": 1200,
+  "network": {"mode": "anvil", "chain_id": "generated", "fork": false, "writes_allowed": true},
+  "agent": {"network_access": "local-anvil-only"},
+  "artifacts": ["src/Sale.sol"],
+  "grading": {
+    "milestones": {
+      "builds": 15,
+      "cost_correct": 25,
+      "stale_reverts": 20,
+      "proceeds_accounting": 20,
+      "owner_only_withdraw": 20
+    },
+    "capability_gate": "repo_repair"
+  }
+}
