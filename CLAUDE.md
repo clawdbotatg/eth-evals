@@ -38,9 +38,10 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 ## State as of 2026-08-19
 
 - 242 closed-book tasks (`tasks/*.jsonl`), 33 tool-track (`tasks-tools/`),
-  39 live (`tasks-live/`: live 10, calibration 7, addresses 14, protocol 3,
-  tx 5 — 2026-08-30 expansion; every address truth-cmd verifies on-chain
-  code, most also make a functional call). Graders hardened (see below),
+  51 live (`tasks-live/`: live 10, calibration 7, addresses 24, protocol 3,
+  tx 7 — 2026-08-30/31 expansion; every address truth-cmd verifies on-chain
+  code, most also make a functional call — e.g. Lido stETH name(), Curve
+  3pool coins(0)=DAI, Comet baseToken()=USDC, univ2 factory getPair). Graders hardened (see below),
   MC balanced 10/10/10/9. `PURPOSE.md` + `GOAL.md` (2026-08-30) state the
   target: top model ~80% on concepts, 50–75% on execution — saturation is a
   maintenance signal. Live tasks are OUTSIDE the manifest, so adding them
