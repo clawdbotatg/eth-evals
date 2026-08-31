@@ -59,8 +59,20 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
   because mainnet addresses hold prior state, no dangling approvals;
   fixtures 70/90+violation/55; needs `ALCHEMY_API_KEY` in `.env` —
   test_exec skips its section without it, and DON'T force a base fee on a
-  fork, the pinned block's real base fee rules). No agent has been run
-  against any of them yet.
+  fork, the pinned block's real base fee rules); and `vault-exploit-patch`
+  (2026-08-30 — Security track; agent gets a Foundry project with a
+  first-depositor-inflation vault, writes an exploit test + patches the
+  vault; grading builds throwaway forge projects OUTSIDE the workspace and
+  runs `forge test`, swapping original/agent/reference vaults × agent/
+  canonical exploits × a hidden functional suite; no forge-std, tests declare
+  `Vm` inline; the exploit_is_real milestone catches cheatcode-faked exploits
+  by re-running them against a safe vault; fixtures 70/70/75; forge-only, no
+  chain). No agent has been run against any of them yet.
+
+  Two forge gotchas the vault scenario hit: (1) `vm.prank(x); f(g())` — the
+  prank is consumed by the INNER call `g()`, not `f`; read into a var first.
+  (2) `forge test --json` returns per-test status keyed by `fn()`; a compile
+  error yields non-JSON, so treat unparseable stdout as "didn't compile".
 
 ## Grading architecture — the non-obvious parts
 

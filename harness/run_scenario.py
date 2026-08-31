@@ -108,7 +108,9 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
         mod.setup_chain(inst, rpc_url)
         files = mod.workspace_files(inst, rpc_url)
         for fname, content in files.items():
-            (workspace / fname).write_text(content)
+            dest = workspace / fname
+            dest.parent.mkdir(parents=True, exist_ok=True)   # nested files (src/, test/)
+            dest.write_text(content)
 
         env = {k: v for k, v in os.environ.items() if not SCRUB.match(k)}
         prompt = files.get("prompt.md", "")
