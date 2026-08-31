@@ -200,8 +200,9 @@ def main():
     rows = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as ex:
         for r in ex.map(lambda t: run_one(target, t, args.mode), tasks):
-            if r is not None:
-                rows.append(r)
+            if r is None:
+                continue                 # agent-only task skipped in closed mode
+            rows.append(r)
             print(f"  {'✓' if r['pass'] else '✗'} {r['id']} ({r['latency_s']}s) {r['detail'][:100]}")
 
     passed = sum(r["pass"] for r in rows)

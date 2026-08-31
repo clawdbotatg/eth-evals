@@ -15,9 +15,11 @@ break things.
    "Running a sweep" below.
 2. **Never a public RPC.** `harness/rpc_policy.py` enforces Alchemy-only for
    upstreams; keep it that way. `ALCHEMY_API_KEY` lives in gitignored `.env`.
-3. **Never commit keys.** The only 64-hex constant in the repo is the
-   secp256k1 curve order in `scenarios/*/scenario.py` — that's public math,
-   not a secret. Scenario wallet keys are derived at runtime and never saved.
+3. **Never commit keys.** The only 64-hex constants in the repo are the
+   secp256k1 curve order in `scenarios/*/scenario.py` and the obvious
+   `0x111…1` / `0x222…2` placeholder r/s values in
+   `tasks-live/tx.jsonl` — public math and dummy fixtures, not secrets.
+   Scenario wallet keys are derived at runtime and never saved.
 
 ## Definition of done (run all of these before claiming anything works)
 
@@ -36,8 +38,13 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 ## State as of 2026-08-19
 
 - 242 closed-book tasks (`tasks/*.jsonl`), 33 tool-track (`tasks-tools/`),
-  10 live (`tasks-live/`). Graders hardened (see below), MC balanced
-  10/10/10/9.
+  39 live (`tasks-live/`: live 10, calibration 7, addresses 14, protocol 3,
+  tx 5 — 2026-08-30 expansion; every address truth-cmd verifies on-chain
+  code, most also make a functional call). Graders hardened (see below),
+  MC balanced 10/10/10/9. `PURPOSE.md` + `GOAL.md` (2026-08-30) state the
+  target: top model ~80% on concepts, 50–75% on execution — saturation is a
+  maintenance signal. Live tasks are OUTSIDE the manifest, so adding them
+  does not orphan ranked closed-book runs.
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
