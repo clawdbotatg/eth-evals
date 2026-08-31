@@ -1,0 +1,22 @@
+{
+  "id": "erc2612-permit",
+  "version": 1,
+  "track": "transactions",
+  "family": "eip712-permit",
+  "timeout_seconds": 900,
+  "network": {"mode": "anvil", "chain_id": "generated", "fork": false, "writes_allowed": true},
+  "agent": {"network_access": "local-anvil-only"},
+  "artifacts": ["submission.json"],
+  "grading": {
+    "milestones": {
+      "submission_valid": 10,
+      "permit_tx_correct": 15,
+      "transfer_tx_correct": 15,
+      "permit_consumed": 15,
+      "exact_allowance": 10,
+      "tokens_moved": 25,
+      "owner_gasless": 10
+    },
+    "capability_gate": "eip712_signature"
+  }
+}

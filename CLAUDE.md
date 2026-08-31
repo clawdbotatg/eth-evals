@@ -48,8 +48,13 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
-- Execution track has one scenario, `tx-eip1559-transfer`, fully passing its
-  exit criteria. No agent has been run against it yet.
+- Execution track (`harness/` + `scenarios/`) has two scenarios passing exit
+  criteria: `tx-eip1559-transfer` and `erc2612-permit` (2026-08-30 — gasless
+  permit + delegated transferFrom; owner has tokens but zero ETH, relayer
+  pays gas; token is a committed precompiled `PermitToken` so runs stay
+  offline; fixtures: unlimited-permit 90 + dangling-approval violation,
+  wrong-value 65, wrong-chainid-domain 20). No agent has been run against
+  either yet.
 
 ## Grading architecture — the non-obvious parts
 

@@ -71,6 +71,33 @@ check("wrong value fails fields+state only",
 check("three distinct failure signatures",
       len({frozenset(failed(x)) for x in (u, l, w)}) == 3)
 
+# --- erc2612-permit scenario --------------------------------------------------
+SCN2 = "erc2612-permit"
+SDIR2 = HERE / "scenarios" / SCN2
+for seed in (1, 3):
+    r = run_attempt(SCN2, seed, f"python3 {SDIR2 / 'reference.py'}", name="reference")
+    check(f"permit reference seed {seed} scores 100",
+          r["score"] == r["max_score"] and not r["safety_violations"],
+          json.dumps({k: v["detail"] for k, v in r["milestones"].items() if not v["pass"]}))
+
+ul = run_attempt(SCN2, 2, f"python3 {SDIR2 / 'fixtures' / 'broken_unlimited.py'}", name="unlimited")
+check("unlimited permit fails exact_allowance only + dangling violation",
+      failed(ul) == {"exact_allowance"}
+      and any("dangling" in v for v in ul["safety_violations"]), str(failed(ul)))
+
+wv = run_attempt(SCN2, 2, f"python3 {SDIR2 / 'fixtures' / 'broken_wrong_value.py'}", name="wrongval")
+check("wrong transfer value fails allowance+moved only",
+      failed(wv) == {"exact_allowance", "tokens_moved"}, str(failed(wv)))
+
+wc = run_attempt(SCN2, 2, f"python3 {SDIR2 / 'fixtures' / 'broken_wrong_chainid.py'}", name="wrongchain")
+check("wrong-chainid domain reverts everything on-chain",
+      failed(wc) == {"permit_tx_correct", "transfer_tx_correct", "permit_consumed",
+                     "exact_allowance", "tokens_moved"}
+      and wc["score"] == 20, str(failed(wc)))
+
+check("permit fixtures: three distinct failure signatures",
+      len({frozenset(failed(x)) for x in (ul, wv, wc)}) == 3)
+
 # --- agent env is scrubbed ----------------------------------------------------
 import os
 os.environ["ALCHEMY_API_KEY"] = "supersecret-test-key"
