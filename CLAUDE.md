@@ -49,7 +49,7 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
-- Execution track (`harness/` + `scenarios/`) has six scenarios passing
+- Execution track (`harness/` + `scenarios/`) has seven scenarios passing
   exit criteria across three tracks (transactions / security / build):
   `tx-eip1559-transfer`; `erc2612-permit` (2026-08-30 —
   gasless permit + delegated transferFrom; owner has tokens but zero ETH;
@@ -83,7 +83,14 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
   string and required wei are SEEDED per run (contracts compiled at
   setup_chain), so `broken_memorized` — the original public `LET_ME_IN` / 1
   gwei — captures flags 1-2 but loses 3-4; grading reads registry
-  `hasMinted`; fixtures 10/35/65). No agent has been run against any of them
+  `hasMinted`; fixtures 10/35/65); and `ctf-advanced` (2026-08-31 — Build
+  track; BuidlGuidl CTF Challenges 7 (raw calldata manipulation: the
+  offset-68 guard sees `mintFlag` while the decoded bytes call `allowMinter`)
+  and 8 (read a private password from storage slot 1, zero the MSB the
+  count-0 mask clears via `0xFF<<248`, satisfy the send-locks with a helper
+  whose receive reverts on 1 wei not 2). Challenge8's password is a per-run
+  constructor arg NOT revealed in the workspace → leak-resistant; points
+  10/40/50; fixtures 10/60/50). No agent has been run against any of them
   yet.
 
   Two forge gotchas the vault scenario hit: (1) `vm.prank(x); f(g())` — the

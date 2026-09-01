@@ -196,6 +196,28 @@ check("underpaid callback loses flag4 only", failed(up) == {"flag4_payment_callb
 check("ctf fixtures: three distinct failure signatures",
       len({frozenset(failed(x)) for x in (to, mem, up)}) == 3)
 
+# --- ctf-advanced scenario (BuidlGuidl CTF 7-8; calldata craft + storage) -----
+SCN7 = "ctf-advanced"
+SDIR7 = HERE / "scenarios" / SCN7
+for seed in (1, 4):
+    r = run_attempt(SCN7, seed, f"python3 {SDIR7 / 'reference.py'}", name="reference")
+    check(f"ctf-advanced reference seed {seed} captures all flags (100)",
+          r["score"] == r["max_score"] and not r["safety_violations"],
+          json.dumps({k: v["detail"] for k, v in r["milestones"].items() if not v["pass"]}))
+
+ato = run_attempt(SCN7, 3, f"python3 {SDIR7 / 'fixtures' / 'broken_team_only.py'}", name="teamonly")
+check("adv team-only captures flag1 only",
+      failed(ato) == {"flag7_calldata_craft", "flag8_password_locks"}, str(failed(ato)))
+
+anc = run_attempt(SCN7, 3, f"python3 {SDIR7 / 'fixtures' / 'broken_no_calldata.py'}", name="nocalldata")
+check("adv no-calldata loses flag7 only", failed(anc) == {"flag7_calldata_craft"}, str(failed(anc)))
+
+awm = run_attempt(SCN7, 3, f"python3 {SDIR7 / 'fixtures' / 'broken_wrong_mask.py'}", name="wrongmask")
+check("adv wrong-mask loses flag8 only", failed(awm) == {"flag8_password_locks"}, str(failed(awm)))
+
+check("ctf-advanced fixtures: three distinct failure signatures",
+      len({frozenset(failed(x)) for x in (ato, anc, awm)}) == 3)
+
 # --- agent env is scrubbed ----------------------------------------------------
 import os
 os.environ["ALCHEMY_API_KEY"] = "supersecret-test-key"
