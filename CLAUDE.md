@@ -49,7 +49,7 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
 - **The leaderboard is intentionally empty.** Results now carry a benchmark
   manifest hash; all 14 saved runs in `results/` predate it and `report.py`
   parks them as legacy, unranked. The first fresh sweep repopulates it.
-- Execution track (`harness/` + `scenarios/`) has five scenarios passing
+- Execution track (`harness/` + `scenarios/`) has six scenarios passing
   exit criteria across three tracks (transactions / security / build):
   `tx-eip1559-transfer`; `erc2612-permit` (2026-08-30 —
   gasless permit + delegated transferFrom; owner has tokens but zero ETH;
@@ -74,8 +74,17 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
   `latestRoundData`), decimal-scaling (6/18/8-dec: cost = amt*price/1e20),
   missing oracle-staleness check, missing proceeds accounting, missing owner
   check; `Mocks.sol`/`Registry.sol` are correct localization noise; hidden
-  functional suite per milestone; fixtures 15/80/80). No agent has been run
-  against any of them yet.
+  functional suite per milestone; fixtures 15/80/80); and `ctf-challenge`
+  (2026-08-31 — Build track; a faithful port of BuidlGuidl CTF Challenges 1-4
+  from `ctf-argentina` (`extension` branch), deployed on the scenario's anvil
+  with a minimal no-OZ `NFTFlags` registry stub. Agent registers a team then
+  captures three flags: keccak calldata key, a helper contract with the right
+  `accessKey`, a payment-callback contract. LEAK-RESISTANT: the access-key
+  string and required wei are SEEDED per run (contracts compiled at
+  setup_chain), so `broken_memorized` — the original public `LET_ME_IN` / 1
+  gwei — captures flags 1-2 but loses 3-4; grading reads registry
+  `hasMinted`; fixtures 10/35/65). No agent has been run against any of them
+  yet.
 
   Two forge gotchas the vault scenario hit: (1) `vm.prank(x); f(g())` — the
   prank is consumed by the INNER call `g()`, not `f`; read into a var first.
