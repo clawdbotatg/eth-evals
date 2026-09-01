@@ -218,6 +218,30 @@ check("adv wrong-mask loses flag8 only", failed(awm) == {"flag8_password_locks"}
 check("ctf-advanced fixtures: three distinct failure signatures",
       len({frozenset(failed(x)) for x in (ato, anc, awm)}) == 3)
 
+# --- gas-golf scenario (quality-graded: correctness + gas caps) ---------------
+SCN8 = "gas-golf"
+SDIR8 = HERE / "scenarios" / SCN8
+for seed in (1, 2):
+    r = run_attempt(SCN8, seed, f"python3 {SDIR8 / 'reference.py'}", name="reference")
+    check(f"gas-golf reference seed {seed} scores 100",
+          r["score"] == r["max_score"] and not r["safety_violations"],
+          json.dumps({k: v["detail"] for k, v in r["milestones"].items() if not v["pass"]}))
+
+gn = run_attempt(SCN8, 2, f"python3 {SDIR8 / 'fixtures' / 'broken_naive.py'}", name="naive")
+check("naive solution clears loose but not tight cap",
+      failed(gn) == {"under_tight_cap"}, str(failed(gn)))
+
+gw = run_attempt(SCN8, 2, f"python3 {SDIR8 / 'fixtures' / 'broken_wasteful.py'}", name="wasteful")
+check("wasteful solution misses both caps",
+      failed(gw) == {"under_loose_cap", "under_tight_cap"}, str(failed(gw)))
+
+gx = run_attempt(SCN8, 2, f"python3 {SDIR8 / 'fixtures' / 'broken_wrong.py'}", name="wrong")
+check("wrong-but-fast solution fails correctness and both caps",
+      failed(gx) == {"correct", "under_loose_cap", "under_tight_cap"}, str(failed(gx)))
+
+check("gas-golf fixtures: three distinct failure signatures",
+      len({frozenset(failed(x)) for x in (gn, gw, gx)}) == 3)
+
 # --- agent env is scrubbed ----------------------------------------------------
 import os
 os.environ["ALCHEMY_API_KEY"] = "supersecret-test-key"

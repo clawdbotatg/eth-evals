@@ -1,0 +1,19 @@
+{
+  "id": "gas-golf",
+  "version": 1,
+  "track": "build",
+  "family": "gas-optimization",
+  "timeout_seconds": 1200,
+  "network": {"mode": "anvil", "chain_id": "generated", "fork": false, "writes_allowed": false},
+  "agent": {"network_access": "local-anvil-only"},
+  "artifacts": ["src/Solution.sol"],
+  "grading": {
+    "milestones": {
+      "compiles": 10,
+      "correct": 20,
+      "under_loose_cap": 20,
+      "under_tight_cap": 50
+    },
+    "capability_gate": "gas_optimization"
+  }
+}
