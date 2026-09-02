@@ -18,6 +18,8 @@ Examples:
 """
 import argparse
 import concurrent.futures
+import hashlib
+import inspect
 import json
 import os
 import re
@@ -26,7 +28,7 @@ import sys
 import time
 from pathlib import Path
 
-from run_eval import CmdTarget, ans_line, extract_bigints, norm
+from run_eval import CmdTarget, ans_line, extract_bigints, harness_commit, norm
 
 HERE = Path(__file__).resolve().parent
 TASKS_DIR = HERE / "tasks-live"
@@ -130,6 +132,39 @@ def grade_live(task, resp, truth):
     return ok, f"truth {exp} got {got}"
 
 
+def live_manifest_hash(tasks, mode):
+    """sha256 over the tasks a run actually sees in this mode plus the grading
+    code and prompt framing. Same rule as the closed-book track: runs whose
+    manifests differ ran different tests and must never be compared. Live
+    truth is computed at grade time, so the truth VALUES are not in the hash -
+    only the commands that produce them."""
+    seen = [t for t in tasks if mode != "closed" or t.get("closed_book", True)]
+    src = "".join(inspect.getsource(f) for f in (
+        grade_live, _floats, truth_value, run_one, ans_line, extract_bigints, norm))
+    blob = (json.dumps(seen, sort_keys=True, separators=(",", ":")) + src
+            + mode + PROMPT_PREFIX + CLOSED_PREFIX + PROMPT_SUFFIX)
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+def report():
+    """Group saved live runs by (mode, manifest). Only runs inside one group
+    are comparable; anything on a stale manifest is listed as legacy."""
+    tasks = load_tasks()
+    current = {m: live_manifest_hash(tasks, m) for m in ("agent", "closed")}
+    groups = {}
+    for f in sorted(RESULTS_DIR.glob("*.json")):
+        r = json.loads(f.read_text())
+        key = (r.get("mode", "?"), r.get("manifest", "none"))
+        groups.setdefault(key, []).append(r)
+    for (mode, man), rs in sorted(groups.items()):
+        cur = current.get(mode) == man
+        tag = "CURRENT" if cur else "LEGACY (not comparable)"
+        print(f"\n{mode} mode, manifest {man[:10]} - {tag}")
+        for r in sorted(rs, key=lambda r: -r["passed"] / max(r["total"], 1)):
+            print(f"  {r['name']:<18}{r['passed']:>4}/{r['total']:<4}"
+                  f"{r['passed']/max(r['total'],1):>6.0%}   {r['timestamp']}")
+
+
 def load_tasks():
     tasks = []
     for f in sorted(TASKS_DIR.glob("*.jsonl")):
@@ -163,11 +198,16 @@ def main():
     ap.add_argument("--cmd", help="agent CLI; prompt on stdin, answer on stdout")
     ap.add_argument("--self-test", action="store_true", help="run every truth cmd, print values")
     ap.add_argument("--concurrency", type=int, default=2)
+    ap.add_argument("--report", action="store_true",
+                    help="group saved runs by manifest; only same-manifest runs compare")
     ap.add_argument("--mode", choices=["agent", "closed"], default="agent",
                     help="agent = tools + told to look it up; "
                          "closed = no tools, graded on what the model believes")
     args = ap.parse_args()
 
+    if args.report:
+        report()
+        return
     load_env_file()
     if not os.environ.get("RPC_URL"):
         sys.exit("RPC_URL not set (put it in .env — an Alchemy URL, never a public RPC)")
@@ -213,7 +253,9 @@ def main():
         sys.exit(f"refusing to save - never reached the target on: {', '.join(errs)}")
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    out = {"name": args.name, "target": target.desc,
+    out = {"name": args.name, "target": target.desc, "mode": args.mode,
+           "manifest": live_manifest_hash(tasks, args.mode),
+           "harness_commit": harness_commit(),
            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
            "passed": passed, "total": len(rows), "tasks": rows}
     (RESULTS_DIR / f"{args.name}.json").write_text(json.dumps(out, indent=1))

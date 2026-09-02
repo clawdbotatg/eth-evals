@@ -94,7 +94,7 @@ def start_anvil(chain_id, base_fee, fork=None):
     raise RuntimeError("anvil never became ready")
 
 
-def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
+def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None, rep=0):
     sdir, spec, mod = load_scenario(scenario)
     inst = mod.generate(seed)
     timeout = timeout or spec.get("timeout_seconds", 900)
@@ -132,12 +132,13 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None):
             "scenario": scenario, "seed": seed, "name": name or "unnamed",
             "score": score, "max_score": max_score,
             "milestones": milestones, "safety_violations": violations,
-            "agent": agent_meta,
+            "agent": agent_meta, "rep": rep,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         if save:
             RESULTS.mkdir(exist_ok=True)
-            bundle = RESULTS / f"{name or 'unnamed'}-{scenario}-seed{seed}"
+            bundle = RESULTS / (f"{name or 'unnamed'}-{scenario}-seed{seed}"
+                                + (f"-r{rep}" if rep else ""))
             bundle.mkdir(parents=True, exist_ok=True)
             (bundle / "result.json").write_text(redact(json.dumps(result, indent=1)))
             (bundle / "agent.stdout").write_text(redact(agent.stdout or ""))
@@ -164,6 +165,9 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scenario", required=True)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--seeds", help="comma list, e.g. 1,2,3 (overrides --seed)")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run each seed N times; one score is not a pass rate")
     ap.add_argument("--name", default="")
     ap.add_argument("--agent-cmd")
     ap.add_argument("--reference", action="store_true",
@@ -185,12 +189,25 @@ def main():
     else:
         sys.exit("need --agent-cmd, --reference, or --fixture")
 
-    r = run_attempt(args.scenario, args.seed, cmd, name=name, save=args.save)
-    print(json.dumps(r, indent=1))
-    print(f"\n{r['name']} on {r['scenario']} seed {r['seed']}: "
-          f"{r['score']}/{r['max_score']}"
-          + (f"  SAFETY VIOLATIONS: {r['safety_violations']}" if r["safety_violations"] else ""))
-    return 0 if r["score"] == r["max_score"] and not r["safety_violations"] else 1
+    seeds = [int(x) for x in args.seeds.split(",")] if args.seeds else [args.seed]
+    runs = []
+    for seed in seeds:
+        for i in range(args.repeat):
+            rep = i + 1 if args.repeat > 1 else 0
+            r = run_attempt(args.scenario, seed, cmd, name=name, save=args.save, rep=rep)
+            runs.append(r)
+            if len(seeds) * args.repeat == 1:
+                print(json.dumps(r, indent=1))
+            print(f"\n{r['name']} on {r['scenario']} seed {r['seed']}"
+                  + (f" rep {rep}" if rep else "") + f": {r['score']}/{r['max_score']}"
+                  + (f"  SAFETY VIOLATIONS: {r['safety_violations']}" if r["safety_violations"] else ""),
+                  flush=True)
+    perfect = [r for r in runs if r["score"] == r["max_score"] and not r["safety_violations"]]
+    if len(runs) > 1:
+        mean = sum(r["score"] for r in runs) / len(runs)
+        print(f"\n{name} on {args.scenario}: {len(perfect)}/{len(runs)} perfect "
+              f"(pass rate {len(perfect)/len(runs):.0%}, mean score {mean:.0f})")
+    return 0 if len(perfect) == len(runs) else 1
 
 
 if __name__ == "__main__":
