@@ -124,15 +124,27 @@ def run_task(agent, task, seed):
     raise ValueError(task["track"])
 
 
+GATE = None   # global cap on concurrent agent processes across ALL agents (--max-procs)
+
+
+class _Unlimited:
+    def __enter__(self):
+        return None
+
+    def __exit__(self, *a):
+        return False
+
+
 def run_agent(log, agent, tasks, concurrency, seed):
     def one(task):
-        log.emit(type="start", agent=agent["name"], task=task["id"])
-        t0 = time.time()
-        try:
-            score, mx, detail, extra = run_task(agent, task, seed)
-            err = False
-        except Exception as e:  # noqa: BLE001
-            score, mx, detail, extra, err = 0, task["max"], f"ERROR: {str(e)[:200]}", {}, True
+        with GATE or _Unlimited():
+            log.emit(type="start", agent=agent["name"], task=task["id"])
+            t0 = time.time()
+            try:
+                score, mx, detail, extra = run_task(agent, task, seed)
+                err = False
+            except Exception as e:  # noqa: BLE001
+                score, mx, detail, extra, err = 0, task["max"], f"ERROR: {str(e)[:200]}", {}, True
         log.emit(type="result", agent=agent["name"], task=task["id"], score=score, max=mx,
                  **{"pass": score == mx and not err}, error=err,
                  elapsed=round(time.time() - t0, 1), detail=detail, **extra)
@@ -162,8 +174,11 @@ def cmd_run(args):
     log = EventLog(args.run)
     if log.path.exists():
         sys.exit(f"{log.path} exists — pick a new --run name")
+    global GATE
+    GATE = threading.Semaphore(args.max_procs) if args.max_procs else None
     log.emit(type="meta", run=args.run, agents=agents, tasks=[public(t) for t in tasks],
-             tracks=tracks, seed=args.seed, live_mode=args.live_mode)
+             tracks=tracks, seed=args.seed, live_mode=args.live_mode,
+             concurrency=args.concurrency, max_procs=args.max_procs)
     print(f"arena {args.run}: {len(agents)} agents x {len(tasks)} tasks -> {log.path}")
     threads = [threading.Thread(target=run_agent, args=(log, a, tasks, args.concurrency, args.seed),
                                 daemon=True) for a in agents]
@@ -318,6 +333,8 @@ def main():
     r.add_argument("--agent", action="append", required=True, help="name=cmd, repeatable")
     r.add_argument("--tracks", default="closed,tools,live,exec")
     r.add_argument("--concurrency", type=int, default=3, help="per agent")
+    r.add_argument("--max-procs", type=int, default=0,
+                   help="cap on agent processes across all agents (0 = per-agent concurrency only)")
     r.add_argument("--live-mode", choices=["agent", "closed"], default="agent",
                    help="live track: agent = tools + RPC; closed = no tools, what it believes")
     r.add_argument("--seed", type=int, default=1, help="exec scenario seed")

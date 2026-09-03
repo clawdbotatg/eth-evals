@@ -4,6 +4,52 @@ Raw result files are gitignored (`results-live/`, `exec-results/`,
 `arena-runs/`). This file is the committed record of what was measured,
 when, and what looked off. Newest first.
 
+## 2026-09-03 — arena live-4b: same four models, 3 processes max (concurrency check)
+
+Rerun of live-4 with `--max-procs 3` (a global gate; exactly three
+`claude` processes at any time, verified with ps). Same 50 tasks. 18 min
+wall. Watched at http://127.0.0.1:8790/#run=live-4b.
+
+| model | 09-02 (3 procs) | live-4 (12 procs) | live-4b (3 procs) |
+|---|---|---|---|
+| fable | 38/50 | 32/50 | 35/50 |
+| opus | 35/50 | 34/50 | 35/50 |
+| sonnet | 21/50 | 20/50 | 23/50 |
+| haiku | 16/50 | 14/50 | 12/50 |
+
+Task-level flips between runs (up/down): fable +4/−1 vs live-4, opus
++2/−1, sonnet +5/−2, haiku +0/−2. Every model flips 2 to 7 tasks between
+any two runs of this track.
+
+**Fable, the 6 tasks it lost in live-4:**
+
+| task | category | 09-02 | live-4 | live-4b | change |
+|---|---|---|---|---|---|
+| addr-erc8004-reputation | canonical-address | pass | FAIL | FAIL | still failing |
+| addr-morpho-blue | canonical-address | pass | FAIL | pass | recovered |
+| addr-universal-router | canonical-address | pass | FAIL | pass | recovered |
+| live-usdc-supply | live-research | pass | FAIL | pass | recovered |
+| tx-calldata-dai-transferfrom | live-tx | pass | FAIL | FAIL | still failing |
+| tx-calldata-permit-2612 | live-tx | pass | FAIL | pass | recovered |
+| proto-blob-cost-usd | protocol-current | pass | pass | FAIL | new loss |
+
+Four of the six came back at low concurrency, two stayed down, and one
+new task dropped. Only one "no address" reply in live-4 (`morpho-blue`),
+none in live-4b.
+
+**Verdict: noise, not a concurrency effect.** Fable's three runs land at
+38, 32, 35 — a ±3 spread, the same band every other model shows (Sonnet
+21/20/23, Haiku 16/14/12, Opus 35/34/35). Haiku got *worse* at low
+concurrency, and Opus didn't move, so load does not explain live-4. A
+load effect of one or two tasks can't be excluded on n=1 per condition,
+but it is smaller than the run-to-run noise either way.
+
+What this means for the track: **one 50-task run has about ±3 tasks
+(±6 points) of noise.** Fable and Opus are tied within it (35/35 here).
+Ranking two models on this track needs either 3+ runs each or a bigger
+task set. Sonnet and Haiku are separated from the top pair by far more
+than the noise, so the tier ordering holds.
+
 ## 2026-09-03 — arena live-4: four models, live track, closed-book, watched live
 
 First real run through `arena.py` (`--tracks live --live-mode closed`,
