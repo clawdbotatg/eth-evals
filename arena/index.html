@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eth-evals arena</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #161b22; --line: #232a33; --text: #e6e9ee; --dim: #7d8794;
+    --pend: #242a33; --pass: #2fbf8f; --fail: #c9483a; --err: #5b6470; --run: #f2c94c;
+    --cons0: #1b2230; --cons1: #4c8dff;
+    --cell: 11px; --gap: 2px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  header { display: flex; align-items: baseline; gap: 18px; padding: 14px 20px 8px;
+           border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .08em; text-transform: uppercase; }
+  header .meta { color: var(--dim); }
+  header .state { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); vertical-align: middle; margin-right: 6px; }
+  .dot.live { background: var(--pass); box-shadow: 0 0 0 0 rgba(47,191,143,.6); animation: ping 1.6s infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(47,191,143,.6);} 100% { box-shadow: 0 0 0 8px rgba(47,191,143,0);} }
+  select, button { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+                   border-radius: 4px; padding: 3px 8px; font: inherit; }
+  main { padding: 10px 20px 40px; }
+
+  /* the category band: one set of labels, aligned with every grid below */
+  .band { display: flex; gap: var(--tgap, 18px); margin-left: var(--panelw); padding: 8px 0 4px;
+          position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  .band .track { display: flex; gap: 8px; }
+  .band .cat { color: var(--dim); font-size: 10px; letter-spacing: .04em; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); padding-top: 3px; }
+  .band .trackname { font-size: 10px; color: var(--text); letter-spacing: .08em; text-transform: uppercase; }
+
+  .row { display: flex; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line);
+         transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+  .panel { width: var(--panelw); flex: none; padding-right: 16px; }
+  .panel .name { display: flex; align-items: baseline; gap: 8px; }
+  .rank { color: var(--dim); font-size: 11px; width: 22px; }
+  .agent { font-weight: 600; font-size: 15px; }
+  .score { margin-top: 4px; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .score small { color: var(--dim); font-size: 12px; margin-left: 4px; }
+  .bar { position: relative; height: 8px; background: var(--pend); border-radius: 2px; margin: 6px 0 6px; overflow: hidden; }
+  .bar i { position: absolute; top: 0; bottom: 0; }
+  .bar .p { background: var(--pass); }
+  .bar .f { background: var(--fail); }
+  .bar .e { background: var(--err); }
+  .bar .r { background: repeating-linear-gradient(45deg, var(--run) 0 3px, transparent 3px 6px); opacity: .7; }
+  .sub { color: var(--dim); font-size: 11px; white-space: nowrap; }
+  .tracks { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .tracks span { font-size: 10px; color: var(--dim); }
+  .tracks b { color: var(--text); font-weight: 500; }
+  .now { margin-top: 6px; font-size: 10px; color: var(--run); min-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .grid { display: flex; gap: var(--tgap, 18px); }
+  .trk { display: flex; gap: 8px; }
+  .cat { display: grid; grid-auto-flow: column; gap: var(--gap);
+         grid-template-rows: repeat(var(--rows), var(--cell)); }
+  .c { width: var(--cell); height: var(--cell); border-radius: 2px; background: var(--pend);
+       position: relative; transition: background .25s; }
+  .c.pass { background: var(--pass); }
+  .c.fail { background: var(--fail); }
+  .c.err  { background: var(--err); }
+  .c.part { background: linear-gradient(to top, var(--pass) 0 var(--pct), var(--fail) var(--pct) 100%); }
+  .c.run  { box-shadow: inset 0 0 0 2px var(--run); animation: blink 1s infinite alternate; }
+  @keyframes blink { from { box-shadow: inset 0 0 0 2px var(--run);} to { box-shadow: inset 0 0 0 1px rgba(242,201,76,.3);} }
+  .c.flash { animation: pop .5s ease-out; }
+  @keyframes pop { 0% { transform: scale(1.7); z-index: 3; } 100% { transform: scale(1); } }
+  .cons .c { background: var(--cons0); }
+  .cons .panel .agent { color: var(--dim); font-weight: 500; }
+
+  #tip { position: fixed; pointer-events: none; background: #0b0e12; border: 1px solid var(--line);
+         padding: 6px 8px; border-radius: 4px; font-size: 11px; max-width: 360px; display: none; z-index: 9; }
+  #tip b { color: var(--text); } #tip div { color: var(--dim); }
+  .recent { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; color: var(--dim); font-size: 11px; }
+  .recent div { padding: 1px 0; }
+  .recent .ok { color: var(--pass); } .recent .no { color: var(--fail); }
+  .legend { display: flex; gap: 14px; color: var(--dim); font-size: 10px; align-items: center; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+  .empty { padding: 60px 20px; color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>eth-evals arena</h1>
+  <span class="meta" id="hmeta">—</span>
+  <div class="state">
+    <label>run <select id="runsel"></select></label>
+    <label>sort <select id="sortsel"><option value="pts">points so far</option><option value="acc">accuracy</option><option value="fixed">fixed</option></select></label>
+    <span id="clock">00:00</span>
+    <span><i class="dot" id="dot"></i><span id="status">idle</span></span>
+  </div>
+</header>
+<main>
+  <div id="band" class="band"></div>
+  <div id="rows"></div>
+  <div id="cons"></div>
+  <div class="legend" style="margin-top:10px">
+    <span><i style="background:var(--pass)"></i>pass</span>
+    <span><i style="background:var(--fail)"></i>fail</span>
+    <span><i style="background:linear-gradient(to top,var(--pass) 0 50%,var(--fail) 50%)"></i>partial (exec milestones)</span>
+    <span><i style="box-shadow:inset 0 0 0 2px var(--run)"></i>running</span>
+    <span><i style="background:var(--err)"></i>error</span>
+    <span><i style="background:var(--pend)"></i>pending</span>
+    <span style="margin-left:14px"><i style="background:var(--cons1)"></i>consensus: brighter = more agents solved it</span>
+  </div>
+  <div class="recent" id="recent"></div>
+</main>
+<div id="tip"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const qs = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+  const PANELW = 270;
+  document.documentElement.style.setProperty('--panelw', PANELW + 'px');
+
+  // ---------------------------------------------------------------- state
+  let run = qs.get('run') || null, src = qs.get('src') || null;
+  let offset = 0, buf = '', meta = null, done = false, lastT = 0;
+  const agents = {};      // name -> {tasks: {id -> {st, score, max, elapsed, detail}}, done}
+  const cells = {};       // agent -> id -> element
+  const consCells = {};   // id -> element
+  const tasks = [];       // ordered task list from meta
+  const byId = {};
+  let recent = [];
+
+  // ---------------------------------------------------------------- layout
+  // Every agent renders the SAME grid: tracks -> categories -> cells, column-
+  // major with R rows. R is the smallest row count that fits the viewport, so
+  // the layout is identical across agents and positions line up vertically.
+  function groups() {
+    const g = [];
+    for (const t of tasks) {
+      let trk = g.find(x => x.track === t.track);
+      if (!trk) g.push(trk = {track: t.track, cats: []});
+      let cat = trk.cats.find(x => x.cat === t.cat);
+      if (!cat) trk.cats.push(cat = {cat: t.cat, ids: []});
+      cat.ids.push(t.id);
+    }
+    return g;
+  }
+  function pickRows(g) {
+    const avail = window.innerWidth - PANELW - 60, cell = 11, gap = 2;
+    for (let R = 2; R <= 12; R++) {
+      let w = 0;
+      g.forEach((trk, i) => {
+        if (i) w += 18;
+        trk.cats.forEach((c, j) => { if (j) w += 8; w += Math.ceil(c.ids.length / R) * (cell + gap); });
+      });
+      if (w <= avail) return R;
+    }
+    return 12;
+  }
+  function gridFor(g, R, agent) {
+    const grid = document.createElement('div'); grid.className = 'grid';
+    for (const trk of g) {
+      const td = document.createElement('div'); td.className = 'trk';
+      for (const c of trk.cats) {
+        const cd = document.createElement('div'); cd.className = 'cat'; cd.style.setProperty('--rows', R);
+        for (const id of c.ids) {
+          const e = document.createElement('div'); e.className = 'c'; e.dataset.id = id; e.dataset.agent = agent;
+          cd.appendChild(e);
+          if (agent === '__cons') consCells[id] = e; else (cells[agent] ||= {})[id] = e;
+        }
+        td.appendChild(cd);
+      }
+      grid.appendChild(td);
+    }
+    return grid;
+  }
+  function bandFor(g, R) {
+    const b = $('#band'); b.innerHTML = '';
+    for (const trk of g) {
+      const td = document.createElement('div'); td.className = 'track';
+      trk.cats.forEach((c, j) => {
+        const w = Math.ceil(c.ids.length / R) * 13 - 2;
+        const d = document.createElement('div'); d.className = 'cat'; d.style.width = w + 'px';
+        d.textContent = c.cat; d.title = `${trk.track} / ${c.cat} (${c.ids.length})`;
+        if (j === 0) { const n = document.createElement('div'); n.className = 'trackname'; n.textContent = trk.track; d.prepend(n); }
+        td.appendChild(d);
+      });
+      b.appendChild(td);
+    }
+  }
+  function build() {
+    const g = groups(), R = pickRows(g);
+    bandFor(g, R);
+    const rows = $('#rows'); rows.innerHTML = '';
+    for (const a of meta.agents) {
+      const r = document.createElement('div'); r.className = 'row'; r.dataset.agent = a.name;
+      r.innerHTML = `<div class="panel">
+          <div class="name"><span class="rank">#–</span><span class="agent">${a.name}</span></div>
+          <div class="score">0.0<small>/ ${tasks.length}</small></div>
+          <div class="bar"><i class="p"></i><i class="f"></i><i class="e"></i><i class="r"></i></div>
+          <div class="sub">—</div><div class="tracks"></div><div class="now"></div></div>`;
+      r.appendChild(gridFor(g, R, a.name));
+      rows.appendChild(r);
+      agents[a.name] = {tasks: {}, done: false, cmd: a.cmd};
+    }
+    const c = $('#cons'); c.innerHTML = '';
+    const cr = document.createElement('div'); cr.className = 'row cons';
+    cr.innerHTML = `<div class="panel"><div class="name"><span class="rank"></span><span class="agent">consensus</span></div>
+                    <div class="sub" id="conssub">solved by how many agents</div></div>`;
+    cr.appendChild(gridFor(g, R, '__cons'));
+    c.appendChild(cr);
+    $('#hmeta').textContent = `${meta.run} · ${meta.agents.length} agents · ${tasks.length} tasks · ${g.map(x => x.track).join(' + ')}`;
+  }
+
+  // ---------------------------------------------------------------- events
+  function apply(ev) {
+    lastT = Math.max(lastT, ev.t || 0);
+    if (ev.type === 'meta') {
+      meta = ev; tasks.length = 0;
+      for (const t of ev.tasks) { tasks.push(t); byId[t.id] = t; }
+      build(); return;
+    }
+    if (!meta) return;
+    const A = agents[ev.agent];
+    if (ev.type === 'start' && A) {
+      A.tasks[ev.task] = {st: 'run', t0: ev.t};
+      const e = cells[ev.agent]?.[ev.task]; if (e) e.className = 'c run';
+    } else if (ev.type === 'result' && A) {
+      const st = ev.error ? 'err' : ev.pass ? 'pass' : (ev.score > 0 ? 'part' : 'fail');
+      A.tasks[ev.task] = {st, score: ev.score, max: ev.max, elapsed: ev.elapsed, detail: ev.detail, ms: ev.milestones};
+      const e = cells[ev.agent]?.[ev.task];
+      if (e) {
+        e.className = 'c ' + st + ' flash';
+        if (st === 'part') e.style.setProperty('--pct', Math.round(100 * ev.score / ev.max) + '%');
+        setTimeout(() => e.classList.remove('flash'), 600);
+      }
+      recent.unshift(ev); recent = recent.slice(0, 12);
+      updateCons(ev.task);
+    } else if (ev.type === 'agent_done' && A) {
+      A.done = true;
+    } else if (ev.type === 'run_done') {
+      done = true;
+    }
+  }
+  function updateCons(id) {
+    const names = Object.keys(agents);
+    let solved = 0, seen = 0;
+    for (const n of names) { const r = agents[n].tasks[id]; if (r && r.st !== 'run') { seen++; if (r.st === 'pass') solved++; } }
+    const e = consCells[id]; if (!e || !seen) return;
+    const f = solved / names.length;
+    e.style.background = `color-mix(in oklab, var(--cons1) ${Math.round(f * 100)}%, var(--cons0))`;
+    e.dataset.cons = `${solved}/${seen} agents solved (of ${names.length})`;
+  }
+
+  // ---------------------------------------------------------------- panels
+  function stats(A) {
+    let pts = 0, done = 0, pass = 0, fail = 0, err = 0, running = [], per = {};
+    for (const t of tasks) {
+      const r = A.tasks[t.id]; if (!r) continue;
+      if (r.st === 'run') { running.push(t.id); continue; }
+      done++;
+      const p = per[t.track] ||= {pts: 0, n: 0}; p.n++;
+      const frac = r.max ? r.score / r.max : 0; pts += frac; p.pts += frac;
+      if (r.st === 'pass') pass++; else if (r.st === 'err') err++; else fail++;
+    }
+    return {pts, done, pass, fail, err, running, per};
+  }
+  function paint() {
+    const names = Object.keys(agents), N = tasks.length || 1;
+    const mode = $('#sortsel').value;
+    const accOf = s => s.done ? s.pts / s.done : 0;
+    const ranked = names.map(n => ({n, s: stats(agents[n])})).sort((a, b) =>
+      mode === 'acc' ? (accOf(b.s) - accOf(a.s) || b.s.pts - a.s.pts) : (b.s.pts - a.s.pts || b.s.done - a.s.done));
+    ranked.forEach(({n, s}, i) => {
+      const row = document.querySelector(`.row[data-agent="${CSS.escape(n)}"]`); if (!row) return;
+      row.querySelector('.rank').textContent = '#' + (i + 1);
+      const acc = s.done ? Math.round(100 * s.pts / s.done) : 0;
+      row.querySelector('.score').innerHTML = `${s.pts.toFixed(1)}<small>/ ${N} · ${Math.round(100 * s.pts / N)}% · acc ${acc}%</small>`;
+      const bar = row.querySelector('.bar');
+      const pw = 100 * s.pass / N, fw = 100 * (s.fail) / N, ew = 100 * s.err / N, rw = 100 * s.running.length / N;
+      // partial credit shows inside the fail segment as a lighter pass slice
+      const partPts = s.pts - s.pass;
+      bar.querySelector('.p').style.cssText = `left:0;width:${pw + 100 * partPts / N}%`;
+      bar.querySelector('.f').style.cssText = `left:${pw + 100 * partPts / N}%;width:${fw - 100 * partPts / N}%`;
+      bar.querySelector('.e').style.cssText = `left:${pw + fw}%;width:${ew}%`;
+      bar.querySelector('.r').style.cssText = `left:${pw + fw + ew}%;width:${rw}%`;
+      row.querySelector('.sub').textContent = `${s.done}/${N} done · ${acc}% of attempted${agents[n].done ? ' · finished' : ''}`;
+      row.querySelector('.tracks').innerHTML = Object.entries(s.per)
+        .map(([k, v]) => `<span>${k} <b>${Math.round(100 * v.pts / v.n)}%</b><i style="opacity:.6"> ${v.n}</i></span>`).join('');
+      row.querySelector('.now').textContent = s.running.length ? '▶ ' + s.running.slice(0, 4).join(' · ') + (s.running.length > 4 ? ` +${s.running.length - 4}` : '') : '';
+    });
+    if (mode !== 'fixed') reorder(ranked.map(r => r.n));
+    else reorder(meta.agents.map(a => a.name));
+    const solvedAll = tasks.filter(t => names.length && names.every(n => agents[n].tasks[t.id]?.st === 'pass')).length;
+    const solvedNone = tasks.filter(t => names.length && names.every(n => agents[n].tasks[t.id] && agents[n].tasks[t.id].st !== 'run' && agents[n].tasks[t.id].st !== 'pass')).length;
+    const sub = $('#conssub'); if (sub) sub.textContent = `everyone: ${solvedAll} · no one: ${solvedNone}`;
+    $('#recent').innerHTML = recent.map(e =>
+      `<div><span class="${e.pass ? 'ok' : 'no'}">${e.pass ? '✓' : e.error ? '!' : '✗'}</span> ${e.agent} · ${e.task}${e.max > 1 ? ` ${e.score}/${e.max}` : ''} · ${e.elapsed}s <span style="opacity:.6">${(e.detail || '').slice(0, 90)}</span></div>`).join('');
+    const allDone = names.length && names.every(n => agents[n].done);
+    $('#dot').className = 'dot' + (done || allDone ? '' : ' live');
+    $('#status').textContent = done || allDone ? 'finished' : (meta ? 'live' : 'waiting');
+    const t0 = meta?.t || 0, tEnd = (done || allDone) ? lastT : Date.now() / 1000;
+    const s = Math.max(0, Math.floor(tEnd - t0));
+    $('#clock').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+  // FLIP reorder: rows slide to their new rank instead of jumping
+  function reorder(order) {
+    const box = $('#rows'), rows = [...box.children];
+    const cur = rows.map(r => r.dataset.agent);
+    if (cur.join() === order.join()) return;
+    const first = new Map(rows.map(r => [r.dataset.agent, r.getBoundingClientRect().top]));
+    for (const n of order) box.appendChild(rows.find(r => r.dataset.agent === n));
+    for (const r of box.children) {
+      const dy = first.get(r.dataset.agent) - r.getBoundingClientRect().top;
+      r.style.transition = 'none'; r.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(() => { r.style.transition = ''; r.style.transform = ''; });
+    }
+  }
+
+  // ---------------------------------------------------------------- tooltip
+  const tip = $('#tip');
+  document.addEventListener('mousemove', e => {
+    const c = e.target.closest?.('.c'); if (!c) { tip.style.display = 'none'; return; }
+    const t = byId[c.dataset.id]; if (!t) return;
+    let html = `<b>${t.id}</b><div>${t.track} / ${t.cat}</div>`;
+    if (c.dataset.agent === '__cons') html += `<div>${c.dataset.cons || 'no results yet'}</div>`;
+    else {
+      const r = agents[c.dataset.agent]?.tasks[t.id];
+      if (!r) html += '<div>pending</div>';
+      else if (r.st === 'run') html += '<div>running…</div>';
+      else html += `<div>${r.st} · ${r.score}/${r.max} · ${r.elapsed}s</div><div>${(r.detail || '').replace(/</g, '&lt;')}</div>`
+        + (r.ms ? `<div>${Object.entries(r.ms).map(([k, v]) => (v ? '✓ ' : '✗ ') + k).join(' · ')}</div>` : '');
+    }
+    tip.innerHTML = html; tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 380) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+  });
+
+  // ---------------------------------------------------------------- polling
+  // The log is an append-only file. Tail it by byte range so a static host
+  // works too (any server that honors Range, or ?src=<url>).
+  async function poll() {
+    if (!run && !src) return;
+    const url = src || `/runs/${encodeURIComponent(run)}/events.jsonl`;
+    try {
+      const res = await fetch(url + (src ? `?_=${Date.now()}` : ''), {headers: {Range: `bytes=${offset}-`}, cache: 'no-store'});
+      if (res.status === 416) return;
+      const txt = await res.text();
+      if (res.status === 200 && offset) { /* server ignored Range: restart parse */ offset = 0; buf = ''; resetState(); }
+      offset += new TextEncoder().encode(txt).length;
+      buf += txt;
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const l of lines) if (l.trim()) { try { apply(JSON.parse(l)); } catch (e) { console.warn(e, l); } }
+      paint();
+    } catch (e) { $('#status').textContent = 'no server'; }
+  }
+  function resetState() {
+    for (const k in agents) delete agents[k];
+    for (const k in cells) delete cells[k];
+    for (const k in consCells) delete consCells[k];
+    meta = null; done = false; recent = []; lastT = 0; tasks.length = 0;
+    $('#rows').innerHTML = ''; $('#cons').innerHTML = ''; $('#band').innerHTML = '';
+  }
+  async function loadRuns() {
+    try {
+      const runs = await (await fetch('/runs.json', {cache: 'no-store'})).json();
+      const sel = $('#runsel'); sel.innerHTML = runs.map(r => `<option value="${r.run}">${r.run}</option>`).join('');
+      if (!run && runs.length) run = runs[0].run;
+      sel.value = run;
+    } catch (e) { /* static mode */ }
+  }
+  $('#runsel').addEventListener('change', e => { run = e.target.value; offset = 0; buf = ''; resetState(); location.hash = 'run=' + run; poll(); });
+  $('#sortsel').addEventListener('change', paint);
+  window.addEventListener('resize', () => { if (meta) { const keep = meta; const ag = JSON.parse(JSON.stringify(agents)); resetState(); apply(keep); for (const n in ag) { agents[n] = ag[n]; for (const id in ag[n].tasks) { const r = ag[n].tasks[id], e = cells[n]?.[id]; if (e) { e.className = 'c ' + r.st; if (r.st === 'part') e.style.setProperty('--pct', Math.round(100 * r.score / r.max) + '%'); } updateCons(id); } } paint(); } });
+  if (!run && !src) $('#rows').innerHTML = '<div class="empty">no run selected. start one: <code>python3 arena.py replay --agents fable-5,opus-5</code></div>';
+  loadRuns().then(() => { poll(); setInterval(poll, 700); setInterval(paint, 1000); });
+})();
+</script>
+</body>
+</html>

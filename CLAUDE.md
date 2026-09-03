@@ -98,6 +98,20 @@ All were green at commit `080964b` (2026-08-19). Needs `anvil`/`cast`
   (2) `forge test --json` returns per-test status keyed by `fn()`; a compile
   error yields non-JSON, so treat unparseable stdout as "didn't compile".
 
+## Arena (live view) — `arena.py` + `arena/index.html`
+
+Run several agents over the whole suite at once and watch it. `python3
+arena.py serve` → http://127.0.0.1:8790/. Each run is one append-only
+`arena-runs/<run>/events.jsonl` (gitignored); the page tails it by byte
+Range, so publishing a run later is copying that file to any static host
+(`#src=<url>`). `arena.py run --agent name='cmd' ...` is a REAL run (rule 1
+applies); `arena.py replay --agents fable-5,opus-5` re-emits saved results
+for free and is how to look at the page. Design: every agent gets the SAME
+grid (tracks → categories → cells, column-major, row count picked to fit
+the viewport) so differences read by position; a consensus row shows how
+many agents solved each task; the bar under each score is the grid
+summarized. Cells repaint by id — never rebuild the grid on a frame.
+
 ## Grading architecture — the non-obvious parts
 
 `run_eval.py` is the whole closed-book engine. Grader types: `numeric`,
