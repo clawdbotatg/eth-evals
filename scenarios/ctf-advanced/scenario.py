@@ -21,7 +21,7 @@ from pathlib import Path
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness.ethrpc import rpc, hexint  # noqa: E402
+from harness.ethrpc import rpc, hexint, wait_receipt  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 CONTRACTS = HERE / "contracts"
@@ -101,14 +101,14 @@ def _compile():
 
 def _deploy(rpc_url, creation_hex):
     txh = rpc(rpc_url, "eth_sendTransaction", [{"from": ANVIL0, "data": creation_hex}])
-    receipt = rpc(rpc_url, "eth_getTransactionReceipt", [txh])
+    receipt = wait_receipt(rpc_url, txh)
     assert hexint(receipt["status"]) == 1, "deploy reverted"
     return receipt["contractAddress"]
 
 
 def _send(rpc_url, to, data):
     txh = rpc(rpc_url, "eth_sendTransaction", [{"from": ANVIL0, "to": to, "data": data}])
-    assert hexint(rpc(rpc_url, "eth_getTransactionReceipt", [txh])["status"]) == 1
+    assert hexint(wait_receipt(rpc_url, txh)["status"]) == 1
 
 
 def setup_chain(inst, rpc_url):

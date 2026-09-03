@@ -13,7 +13,7 @@ from pathlib import Path
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness.ethrpc import rpc, hexint  # noqa: E402
+from harness.ethrpc import rpc, hexint, wait_receipt  # noqa: E402
 
 SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 GWEI = 10**9
@@ -73,14 +73,14 @@ def setup_chain(inst, rpc_url):
     (and deliberately zero ETH), fund only the relayer."""
     bytecode = (Path(__file__).parent / "token_bytecode.txt").read_text().strip()
     txh = rpc(rpc_url, "eth_sendTransaction", [{"from": ANVIL0, "data": bytecode}])
-    receipt = rpc(rpc_url, "eth_getTransactionReceipt", [txh])
+    receipt = wait_receipt(rpc_url, txh)
     token = receipt["contractAddress"]
     assert token and hexint(receipt["status"]) == 1, "token deploy failed"
     inst["token"] = token
 
     data = SEL_TRANSFER + _pad(inst["owner"]) + _pad(inst["owner_start_wei"])
     txh = rpc(rpc_url, "eth_sendTransaction", [{"from": ANVIL0, "to": token, "data": data}])
-    assert hexint(rpc(rpc_url, "eth_getTransactionReceipt", [txh])["status"]) == 1
+    assert hexint(wait_receipt(rpc_url, txh)["status"]) == 1
 
     rpc(rpc_url, "anvil_setBalance", [inst["relayer"], hex(inst["relayer_fund_wei"])])
     assert hexint(rpc(rpc_url, "eth_chainId")) == inst["chain_id"]

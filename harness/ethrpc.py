@@ -20,3 +20,18 @@ def hexint(v):
     if v is None or isinstance(v, int):
         return v
     return int(v, 16)
+
+
+def wait_receipt(url, txh, timeout=10.0):
+    """Receipt for txh, polling until anvil has mined it. Automine is fast but
+    not synchronous under load: a receipt read right after eth_sendTransaction
+    can come back None when several anvils share the box."""
+    import time
+    t0 = time.time()
+    while True:
+        r = rpc(url, "eth_getTransactionReceipt", [txh])
+        if r is not None:
+            return r
+        if time.time() - t0 > timeout:
+            raise RuntimeError(f"tx {txh} not mined after {timeout}s")
+        time.sleep(0.05)

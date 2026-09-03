@@ -18,34 +18,55 @@ grader, where they read as test fixtures. Don't move them back up here.
 | Track | Files | Fable | Note |
 |---|---|---|---|
 | Concepts | tasks/ (242) + tasks-tools/ (33) | ~98% | Saturated. Maintenance. |
-| Live / current-state | tasks-live/ (51) | 68% | The real discriminator. |
-| Building / exec | scenarios/ (11) | 100% | Only Fable has run. See below. |
+| Live / current-state | tasks-live/ (51) | 76% | Ranks the field. See below. |
+| Building / exec | scenarios/ (11) | 100% | 32/32 perfect runs. Haiku 6/11. |
 
-## The gap to fix first
+## Measured 2026-09-02 (runs 1-3 of the plan below)
 
-The building track has been run against **one model** (Fable). Everything
-saved in `exec-results/` is Fable. "Saturated" is a one-data-point claim. The
-broken fixtures prove bad code fails; they don't show how the model field
-spreads. Fix the measurement before making anything harder.
+Live closed-book, all four on the same 50 tasks, manifest `dbcf62f7d2`
+(raw files in gitignored `results-live/`, `run_live_eval.py --report`):
+
+| model | passed | rate |
+|---|---|---|
+| Fable | 38/50 | 76% |
+| Opus | 35/50 | 70% |
+| Sonnet | 21/50 | 42% |
+| Haiku | 16/50 | 32% |
+
+Every model is 0/4 on `live-read` (current block / gas) — unknowable
+closed-book, so those should be flagged `closed_book: false`. Cost
+calibration is 1/7 at best. Addresses and tx calldata are what separate
+the tiers.
+
+Exec (`harness/exec_report.py`): **Fable 32/32 perfect runs** including
+5x repeats on gas-golf, ctf-advanced, dvd-balancer-rounding — pass@1 is
+100%, saturation is real, not a one-sample artifact. **Haiku 6/11 perfect,
+mean 83.** Haiku loses every transaction scenario (extra txs, dangling
+approvals, wrong end state — 60/50/90) and two security puzzles
+(ctf-advanced 50, readonly-reentrancy 60: drained the vault at a loss).
+It aces the build scenarios and three of four public-challenge ports.
+
+Timing caveat: `elapsed_s` is wall clock and this laptop slept during the
+late runs (pmset log shows sleep/darkwake around 01:14), so the 53-min and
+37-min dvd-balancer-rounding entries are not model time. Clean numbers:
+Fable 3-4 min there, Haiku 13 min on ctf-advanced (awake). Run sweeps
+under `caffeinate -i` next time. Time-to-solve still looks like a signal
+the score misses; report it, but only from awake runs.
 
 ## Plan, in order
 
-0. **Done 2026-09-02 (free):** `run_scenario.py --seeds 1,2,3 --repeat N`
+0. **Done 2026-09-02:** runs 1-3 measured (table above). Tooling: `run_scenario.py --seeds 1,2,3 --repeat N`
    and `harness/exec_report.py` (pass rate per model x scenario). Live runs
    now carry a manifest hash + mode; `run_live_eval.py --report` groups them
    and parks the four old runs as legacy (they ran on 17/22/50 tasks — the
    68% vs 41% comparison was never apples to apples).
-1. **Repeat runs before new scenarios.** Fable x5 on the same seed of three
-   scenarios. One 100 is not a pass rate. If it's 3/5 anywhere, the headroom
-   already exists and the honest number is pass@1. Needs Austin's ok.
-2. **Haiku on all 11.** The old answer-injection track already shows
-   Haiku 3/7 vs Sonnet/Opus 7/7, so expect Sonnet-and-up to ace these. Run
-   Haiku only until that's disproven. No runner exists for GPT/Grok (the
-   harness needs a CLI agent; `codex` could stand in for GPT).
-3. **Rerun the live track on all four models** on the same 51 tasks so the
-   numbers compare. Note the closed-book live track measures training
-   cutoff, not skill; it's the base for the ethskills A/B, not the "can it
-   build" number.
+1. ~~Repeat runs~~ done: Fable 15/15 on repeats. No pass@1 headroom.
+2. ~~Haiku on all 11~~ done: 6/11. The track ranks the floor. Sonnet/Opus
+   not run (expected to ace; the old answer-injection track had them 7/7).
+   No runner exists for GPT/Grok (`codex` could stand in for GPT).
+3. ~~Live rerun~~ done, table above. Next: mark the 4 `live-read` tasks
+   agent-only; report elapsed time next to pass rate on the exec track;
+   run sweeps under `caffeinate -i` so elapsed means something.
 4. **Build one long multi-step task — with a hidden adversarial suite.** The
    0.95^10 math assumes no feedback. An agent with `forge test` fixes each
    step, so errors only compound where it can't verify. Design: build a
