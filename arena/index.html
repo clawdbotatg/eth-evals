@@ -119,6 +119,8 @@
 
   // ---------------------------------------------------------------- state
   let run = qs.get('run') || null, src = qs.get('src') || null;
+  if (qs.get('sort')) $('#sortsel').value = qs.get('sort');      // #sort=pts|acc|fixed
+  const hoverParam = qs.get('hover');                             // #hover=agent:task (debug/screenshots)
   let offset = 0, buf = '', meta = null, done = false, lastT = 0;
   const agents = {};      // name -> {tasks: {id -> {st, score, max, elapsed, detail}}, done}
   const cells = {};       // agent -> id -> element
@@ -316,8 +318,7 @@
 
   // ---------------------------------------------------------------- tooltip
   const tip = $('#tip');
-  document.addEventListener('mousemove', e => {
-    const c = e.target.closest?.('.c'); if (!c) { tip.style.display = 'none'; return; }
+  function showTip(c, x, y) {
     const t = byId[c.dataset.id]; if (!t) return;
     let html = `<b>${t.id}</b><div>${t.track} / ${t.cat}</div>`;
     if (c.dataset.agent === '__cons') html += `<div>${c.dataset.cons || 'no results yet'}</div>`;
@@ -329,9 +330,19 @@
         + (r.ms ? `<div>${Object.entries(r.ms).map(([k, v]) => (v ? '✓ ' : '✗ ') + k).join(' · ')}</div>` : '');
     }
     tip.innerHTML = html; tip.style.display = 'block';
-    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 380) + 'px';
-    tip.style.top = (e.clientY + 14) + 'px';
+    tip.style.left = Math.min(x + 14, window.innerWidth - 380) + 'px';
+    tip.style.top = (y + 14) + 'px';
+  }
+  document.addEventListener('mousemove', e => {
+    const c = e.target.closest?.('.c'); if (!c) { tip.style.display = 'none'; return; }
+    showTip(c, e.clientX, e.clientY);
   });
+  function applyHoverParam() {
+    if (!hoverParam) return;
+    const [a, id] = hoverParam.split(':');
+    const c = a === 'cons' ? consCells[id] : cells[a]?.[id]; if (!c) return;
+    const r = c.getBoundingClientRect(); showTip(c, r.x + 6, r.y + 6);
+  }
 
   // ---------------------------------------------------------------- polling
   // The log is an append-only file. Tail it by byte range so a static host
@@ -349,6 +360,7 @@
       const lines = buf.split('\n'); buf = lines.pop();
       for (const l of lines) if (l.trim()) { try { apply(JSON.parse(l)); } catch (e) { console.warn(e, l); } }
       paint();
+      if (lines.length) applyHoverParam();
     } catch (e) { $('#status').textContent = 'no server'; }
   }
   function resetState() {
@@ -367,8 +379,8 @@
     } catch (e) { /* static mode */ }
   }
   $('#runsel').addEventListener('change', e => { run = e.target.value; offset = 0; buf = ''; resetState(); location.hash = 'run=' + run; poll(); });
-  $('#sortsel').addEventListener('change', paint);
-  window.addEventListener('resize', () => { if (meta) { const keep = meta; const ag = JSON.parse(JSON.stringify(agents)); resetState(); apply(keep); for (const n in ag) { agents[n] = ag[n]; for (const id in ag[n].tasks) { const r = ag[n].tasks[id], e = cells[n]?.[id]; if (e) { e.className = 'c ' + r.st; if (r.st === 'part') e.style.setProperty('--pct', Math.round(100 * r.score / r.max) + '%'); } updateCons(id); } } paint(); } });
+  $('#sortsel').addEventListener('change', () => { paint(); applyHoverParam(); });
+  window.addEventListener('resize', () => { if (meta) { const keep = meta, keepT = lastT, keepDone = done, keepRecent = recent; const ag = JSON.parse(JSON.stringify(agents)); resetState(); apply(keep); lastT = keepT; done = keepDone; recent = keepRecent; for (const n in ag) { agents[n] = ag[n]; for (const id in ag[n].tasks) { const r = ag[n].tasks[id], e = cells[n]?.[id]; if (e) { e.className = 'c ' + r.st; if (r.st === 'part') e.style.setProperty('--pct', Math.round(100 * r.score / r.max) + '%'); } updateCons(id); } } paint(); } });
   if (!run && !src) $('#rows').innerHTML = '<div class="empty">no run selected. start one: <code>python3 arena.py replay --agents fable-5,opus-5</code></div>';
   loadRuns().then(() => { poll(); setInterval(poll, 700); setInterval(paint, 1000); });
 })();

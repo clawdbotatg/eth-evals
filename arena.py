@@ -100,9 +100,18 @@ def run_task(agent, task, seed):
         return (1 if r["pass"] else 0), 1, r["detail"][:200], {}
     if task["track"] == "live":
         import run_live_eval
-        target = run_eval.CmdTarget(agent["cmd"])
-        target.env["RPC_URL"] = os.environ["RPC_URL"]
-        r = run_live_eval.run_one(target, task["raw"], "agent")
+        mode = agent.get("live_mode", "agent")
+        cmd = agent["cmd"]
+        if mode == "closed" and "--disallowedTools" not in cmd:
+            cmd += " " + run_live_eval.NOTOOLS_FLAGS
+        target = run_eval.CmdTarget(cmd)
+        if mode == "agent":
+            target.env["RPC_URL"] = os.environ["RPC_URL"]
+        else:
+            target.env.pop("RPC_URL", None)
+        r = run_live_eval.run_one(target, task["raw"], mode)
+        if r is None:
+            return 0, 0, "agent-only task, skipped in closed mode", {}
         return (1 if r["pass"] else 0), 1, r["detail"][:200], {}
     if task["track"] == "exec":
         from harness.run_scenario import run_attempt
@@ -138,7 +147,7 @@ def cmd_run(args):
         name, _, cmd = spec.partition("=")
         if not cmd:
             sys.exit(f"--agent needs name=cmd, got {spec!r}")
-        agents.append({"name": name, "cmd": cmd})
+        agents.append({"name": name, "cmd": cmd, "live_mode": args.live_mode})
     tracks = args.tracks.split(",")
     if "live" in tracks:
         import run_live_eval
@@ -146,13 +155,15 @@ def cmd_run(args):
         if not os.environ.get("RPC_URL"):
             sys.exit("live track needs RPC_URL in .env (Alchemy, never public)")
     tasks = load_track_tasks(tracks)
+    if args.live_mode == "closed":   # same task set run_live_eval uses closed-book
+        tasks = [t for t in tasks if t["track"] != "live" or t["raw"].get("closed_book", True)]
     if args.limit:
         tasks = tasks[:args.limit]
     log = EventLog(args.run)
     if log.path.exists():
         sys.exit(f"{log.path} exists — pick a new --run name")
     log.emit(type="meta", run=args.run, agents=agents, tasks=[public(t) for t in tasks],
-             tracks=tracks, seed=args.seed)
+             tracks=tracks, seed=args.seed, live_mode=args.live_mode)
     print(f"arena {args.run}: {len(agents)} agents x {len(tasks)} tasks -> {log.path}")
     threads = [threading.Thread(target=run_agent, args=(log, a, tasks, args.concurrency, args.seed),
                                 daemon=True) for a in agents]
@@ -307,6 +318,8 @@ def main():
     r.add_argument("--agent", action="append", required=True, help="name=cmd, repeatable")
     r.add_argument("--tracks", default="closed,tools,live,exec")
     r.add_argument("--concurrency", type=int, default=3, help="per agent")
+    r.add_argument("--live-mode", choices=["agent", "closed"], default="agent",
+                   help="live track: agent = tools + RPC; closed = no tools, what it believes")
     r.add_argument("--seed", type=int, default=1, help="exec scenario seed")
     r.add_argument("--limit", type=int, help="first N tasks only (smoke test)")
     r.set_defaults(fn=cmd_run)
