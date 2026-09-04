@@ -221,6 +221,10 @@ score) and refuses to save a run with unreached tasks unless `--save-partial`.
 
 ## Loose ends / open decisions
 
+- **`SRE_BENCH_LESSONS.md`** (2026-09-03) is the queued design: difficulty-axis
+  variants per scenario, score/solved/zero reporting, a hidden scenario set,
+  versioned results JSON. Design only — read it before adding scenarios.
+
 - **TWO exec tracks now coexist — coordinate before touching either.**
   `run_exec_eval.py` + `exec/` + `results-exec/` is a PARALLEL track built in
   another session (committed 1ea5846/8318133 on 2026-08-19, while this doc was
