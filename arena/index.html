@@ -226,7 +226,7 @@
       const e = cells[ev.agent]?.[ev.task]; if (e) e.className = 'c run';
     } else if (ev.type === 'result' && A) {
       const st = ev.error ? 'err' : ev.pass ? 'pass' : (ev.score > 0 ? 'part' : 'fail');
-      A.tasks[ev.task] = {st, score: ev.score, max: ev.max, elapsed: ev.elapsed, detail: ev.detail, ms: ev.milestones};
+      A.tasks[ev.task] = {st, score: ev.score, max: ev.max, elapsed: ev.elapsed, detail: ev.detail, ms: ev.milestones, turns: ev.turns, cost: ev.cost_usd};
       const e = cells[ev.agent]?.[ev.task];
       if (e) {
         e.className = 'c ' + st + ' flash';
@@ -253,7 +253,7 @@
 
   // ---------------------------------------------------------------- panels
   function stats(A) {
-    let pts = 0, done = 0, pass = 0, fail = 0, err = 0, running = [], per = {};
+    let pts = 0, done = 0, pass = 0, fail = 0, err = 0, running = [], per = {}, turns = 0, cost = 0, secs = 0, hasEff = false;
     for (const t of tasks) {
       const r = A.tasks[t.id]; if (!r) continue;
       if (r.st === 'run') { running.push(t.id); continue; }
@@ -261,8 +261,10 @@
       const p = per[t.track] ||= {pts: 0, n: 0}; p.n++;
       const frac = r.max ? r.score / r.max : 0; pts += frac; p.pts += frac;
       if (r.st === 'pass') pass++; else if (r.st === 'err') err++; else fail++;
+      secs += r.elapsed || 0;
+      if (r.turns != null || r.cost != null) { hasEff = true; turns += r.turns || 0; cost += r.cost || 0; }
     }
-    return {pts, done, pass, fail, err, running, per};
+    return {pts, done, pass, fail, err, running, per, turns, cost, secs, hasEff};
   }
   function paint() {
     const names = Object.keys(agents), N = tasks.length || 1;
@@ -283,7 +285,8 @@
       bar.querySelector('.f').style.cssText = `left:${pw + 100 * partPts / N}%;width:${fw - 100 * partPts / N}%`;
       bar.querySelector('.e').style.cssText = `left:${pw + fw}%;width:${ew}%`;
       bar.querySelector('.r').style.cssText = `left:${pw + fw + ew}%;width:${rw}%`;
-      row.querySelector('.sub').textContent = `${s.done}/${N} done · ${acc}% of attempted${agents[n].done ? ' · finished' : ''}`;
+      row.querySelector('.sub').textContent = `${s.done}/${N} done · ${acc}% of attempted${agents[n].done ? ' · finished' : ''}`
+        + (s.hasEff ? ` · ${s.turns} turns · $${s.cost.toFixed(2)}` : '') + (s.done ? ` · ${Math.round(s.secs / s.done)}s/task` : '');
       row.querySelector('.tracks').innerHTML = Object.entries(s.per)
         .map(([k, v]) => `<span>${k} <b>${Math.round(100 * v.pts / v.n)}%</b><i style="opacity:.6"> ${v.n}</i></span>`).join('');
       row.querySelector('.now').textContent = s.running.length ? '▶ ' + s.running.slice(0, 4).join(' · ') + (s.running.length > 4 ? ` +${s.running.length - 4}` : '') : '';
@@ -294,7 +297,7 @@
     const solvedNone = tasks.filter(t => names.length && names.every(n => agents[n].tasks[t.id] && agents[n].tasks[t.id].st !== 'run' && agents[n].tasks[t.id].st !== 'pass')).length;
     const sub = $('#conssub'); if (sub) sub.textContent = `everyone: ${solvedAll} · no one: ${solvedNone}`;
     $('#recent').innerHTML = recent.map(e =>
-      `<div><span class="${e.pass ? 'ok' : 'no'}">${e.pass ? '✓' : e.error ? '!' : '✗'}</span> ${e.agent} · ${e.task}${e.max > 1 ? ` ${e.score}/${e.max}` : ''} · ${e.elapsed}s <span style="opacity:.6">${(e.detail || '').slice(0, 90)}</span></div>`).join('');
+      `<div><span class="${e.pass ? 'ok' : 'no'}">${e.pass ? '✓' : e.error ? '!' : '✗'}</span> ${e.agent} · ${e.task}${e.max > 1 ? ` ${e.score}/${e.max}` : ''} · ${e.elapsed}s${e.turns != null ? ` · ${e.turns}t` : ''}${e.cost_usd != null ? ` · $${e.cost_usd.toFixed(2)}` : ''} <span style="opacity:.6">${(e.detail || '').slice(0, 90)}</span></div>`).join('');
     const allDone = names.length && names.every(n => agents[n].done);
     $('#dot').className = 'dot' + (done || allDone ? '' : ' live');
     $('#status').textContent = done || allDone ? 'finished' : (meta ? 'live' : 'waiting');
@@ -326,7 +329,7 @@
       const r = agents[c.dataset.agent]?.tasks[t.id];
       if (!r) html += '<div>pending</div>';
       else if (r.st === 'run') html += '<div>running…</div>';
-      else html += `<div>${r.st} · ${r.score}/${r.max} · ${r.elapsed}s</div><div>${(r.detail || '').replace(/</g, '&lt;')}</div>`
+      else html += `<div>${r.st} · ${r.score}/${r.max} · ${r.elapsed}s${r.turns != null ? ` · ${r.turns} turns` : ''}${r.cost != null ? ` · $${r.cost.toFixed(2)}` : ''}</div><div>${(r.detail || '').replace(/</g, '&lt;')}</div>`
         + (r.ms ? `<div>${Object.entries(r.ms).map(([k, v]) => (v ? '✓ ' : '✗ ') + k).join(' · ')}</div>` : '');
     }
     tip.innerHTML = html; tip.style.display = 'block';

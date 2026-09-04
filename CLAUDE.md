@@ -29,6 +29,7 @@ python3 run_eval.py --self-test --track tools   # 33/33
 python3 test_graders.py                         # grader-helper regressions
 python3 run_live_eval.py --self-test            # live-truth cmds resolve
 python3 test_exec.py                            # exec harness (~15s, real anvil, no model)
+python3 test_agent_io.py                        # effort capture (turns/cost) via a fake claude
 python3 report.py                               # must not crash
 ```
 
@@ -111,6 +112,17 @@ grid (tracks → categories → cells, column-major, row count picked to fit
 the viewport) so differences read by position; a consensus row shows how
 many agents solved each task; the bar under each score is the grid
 summarized. Cells repaint by id — never rebuild the grid on a frame.
+
+## Effort is logged next to every score (2026-09-03)
+
+`harness/agent_io.py` is the one place that shells out to an agent. A bare
+`claude -p ...` command gets `--output-format json` appended and the result
+envelope unwrapped, so every row carries `usage` = turns / cost_usd / tokens
+/ api_s and the caller still sees plain answer text. Pipelines and non-claude
+commands run untouched with empty usage. Exec bundles also save `agent.json`
+(the full envelope). The arena event log carries `turns` and `cost_usd` per
+result and the page sums them per agent. Borrowed from SRE-Bench: two models
+that tie on score split on cost and turns.
 
 ## Grading architecture — the non-obvious parts
 

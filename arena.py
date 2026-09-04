@@ -97,7 +97,7 @@ def run_task(agent, task, seed):
     if task["track"] in ("closed", "tools"):
         target = run_eval.CmdTarget(agent["cmd"])
         r = run_eval.run_one(target, task["raw"], 16000)
-        return (1 if r["pass"] else 0), 1, r["detail"][:200], {}
+        return (1 if r["pass"] else 0), 1, r["detail"][:200], effort(r.get("usage"))
     if task["track"] == "live":
         import run_live_eval
         mode = agent.get("live_mode", "agent")
@@ -112,7 +112,7 @@ def run_task(agent, task, seed):
         r = run_live_eval.run_one(target, task["raw"], mode)
         if r is None:
             return 0, 0, "agent-only task, skipped in closed mode", {}
-        return (1 if r["pass"] else 0), 1, r["detail"][:200], {}
+        return (1 if r["pass"] else 0), 1, r["detail"][:200], effort(r.get("usage"))
     if task["track"] == "exec":
         from harness.run_scenario import run_attempt
         r = run_attempt(task["id"], seed, agent["cmd"], name=f"arena-{agent['name']}", save=True)
@@ -120,8 +120,18 @@ def run_task(agent, task, seed):
         if r["safety_violations"]:
             detail += " | VIOLATION: " + "; ".join(r["safety_violations"])[:150]
         return r["score"], r["max_score"], detail, {"milestones": {
-            k: v["pass"] for k, v in r["milestones"].items()}}
+            k: v["pass"] for k, v in r["milestones"].items()}, **effort(r["agent"])}
     raise ValueError(task["track"])
+
+
+def effort(meta):
+    """turns / cost_usd from an agent meta dict, for the event log. Absent
+    (not zero) when the CLI didn't report them, so the page can tell."""
+    out = {}
+    for k in ("turns", "cost_usd"):
+        if meta and meta.get(k) is not None:
+            out[k] = meta[k]
+    return out
 
 
 GATE = None   # global cap on concurrent agent processes across ALL agents (--max-procs)
@@ -200,19 +210,20 @@ def _load_saved(name):
     if f.exists():
         for r in json.loads(f.read_text())["tasks"]:
             rows[r["id"]] = {"score": int(bool(r["pass"])), "max": 1, "elapsed": r.get("latency_s", 5),
-                             "detail": r.get("detail", "")[:200]}
+                             "detail": r.get("detail", "")[:200], **effort(r.get("usage"))}
     prefix = name.split("-")[0]
     f = HERE / "results-live" / f"{prefix}-closed.json"
     if f.exists():
         for r in json.loads(f.read_text())["tasks"]:
             rows[r["id"]] = {"score": int(bool(r["pass"])), "max": 1, "elapsed": r.get("latency_s", 5),
-                             "detail": r.get("detail", "")[:200]}
+                             "detail": r.get("detail", "")[:200], **effort(r.get("usage"))}
     for d in glob.glob(str(HERE / "exec-results" / f"{prefix}-*-seed1")):
         r = json.loads((Path(d) / "result.json").read_text())
         rows[r["scenario"]] = {"score": r["score"], "max": r["max_score"],
                                "elapsed": r["agent"]["elapsed_s"],
                                "detail": ", ".join(k for k, v in r["milestones"].items() if not v["pass"]) or "all milestones",
-                               "milestones": {k: v["pass"] for k, v in r["milestones"].items()}}
+                               "milestones": {k: v["pass"] for k, v in r["milestones"].items()},
+                               **effort(r["agent"])}
     return rows
 
 
@@ -241,7 +252,7 @@ def cmd_replay(args):
                 r = rows[task["id"]]
                 log.emit(type="start", agent=name, task=task["id"])
                 time.sleep(min(r["elapsed"], 600) / args.speed)
-                extra = {"milestones": r["milestones"]} if "milestones" in r else {}
+                extra = {k: r[k] for k in ("milestones", "turns", "cost_usd") if k in r}
                 log.emit(type="result", agent=name, task=task["id"], score=r["score"], max=r["max"],
                          **{"pass": r["score"] == r["max"]}, error=False,
                          elapsed=r["elapsed"], detail=r["detail"], **extra)

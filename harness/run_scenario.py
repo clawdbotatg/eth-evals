@@ -27,6 +27,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HERE))
+from harness.agent_io import run_agent  # noqa: E402
 from harness.ethrpc import rpc  # noqa: E402
 from harness.rpc_policy import redact  # noqa: E402
 
@@ -114,11 +115,9 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None, re
 
         env = {k: v for k, v in os.environ.items() if not SCRUB.match(k)}
         prompt = files.get("prompt.md", "")
-        agent = subprocess.run(agent_cmd, shell=True, cwd=str(workspace),
-                               input=prompt, capture_output=True, text=True,
-                               timeout=timeout, env=env)
+        agent = run_agent(agent_cmd, prompt, cwd=str(workspace), env=env, timeout=timeout)
         agent_meta = {"cmd": agent_cmd, "exit": agent.returncode,
-                      "elapsed_s": round(time.time() - t0, 1)}
+                      "elapsed_s": round(time.time() - t0, 1), **agent.meta}
 
         milestones, violations = mod.grade(inst, workspace, rpc_url)
         points = spec["grading"]["milestones"]
@@ -141,8 +140,10 @@ def run_attempt(scenario, seed, agent_cmd, name="", save=False, timeout=None, re
                                 + (f"-r{rep}" if rep else ""))
             bundle.mkdir(parents=True, exist_ok=True)
             (bundle / "result.json").write_text(redact(json.dumps(result, indent=1)))
-            (bundle / "agent.stdout").write_text(redact(agent.stdout or ""))
+            (bundle / "agent.stdout").write_text(redact(agent.text or ""))
             (bundle / "agent.stderr").write_text(redact(agent.stderr or ""))
+            if agent.raw is not None:   # the CLI's full result envelope (usage, turns)
+                (bundle / "agent.json").write_text(redact(json.dumps(agent.raw, indent=1)))
             sub = workspace / "submission.json"
             if sub.exists():
                 (bundle / "submission.json").write_text(redact(sub.read_text()))

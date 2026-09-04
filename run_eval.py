@@ -290,13 +290,11 @@ class CmdTarget:
         self.env = {k: v for k, v in os.environ.items() if not SCRUB.match(k)}
 
     def ask(self, prompt, max_tokens):
-        p = subprocess.run(
-            self.cmd, shell=True, input=prompt, capture_output=True, text=True,
-            timeout=self.timeout, env=self.env, cwd=self.cwd,
-        )
+        from harness.agent_io import run_agent
+        p = run_agent(self.cmd, prompt, cwd=self.cwd, env=self.env, timeout=self.timeout)
         if p.returncode != 0:
             raise RuntimeError(f"cmd exit {p.returncode}: {(p.stderr or p.stdout)[:300]}")
-        return p.stdout.strip(), {}
+        return p.text, p.meta   # meta: turns / cost_usd / tokens when the CLI reports them
 
 # ---------------------------------------------------------------- manifest
 
@@ -511,14 +509,17 @@ def main():
     skills = summarize(rows, key="source")
     overall = round(sum(c["pct"] for c in cats.values()) / len(cats), 1) if cats else 0.0
     lo, hi = bootstrap_ci(rows)
-    tok_in = sum(r["usage"].get("prompt_tokens", 0) for r in rows)
-    tok_out = sum(r["usage"].get("completion_tokens", 0) for r in rows)
+    from harness.agent_io import effort_summary
+    eff = effort_summary(rows)
+    tok_in, tok_out = eff["prompt_tokens"], eff["completion_tokens"]
 
     print(f"\n{'category':<16}{'score':>7}   passed")
     for c, s in cats.items():
         print(f"{c:<16}{s['pct']:>7}   {s['passed']}/{s['total']}")
     print(f"{'OVERALL':<16}{overall:>7}   (95% CI {lo:.1f}–{hi:.1f})")
     tok_note = f" · tokens in {tok_in:,} out {tok_out:,}" if tok_in else ""
+    if eff["turns"] or eff["cost_usd"]:
+        tok_note += f" · {eff['turns']} turns · ${eff['cost_usd']:.2f}"
     print(f"{len(rows)} tasks in {elapsed:.0f}s{tok_note}")
 
     results_dir = TOOLS_RESULTS_DIR if tools else RESULTS_DIR

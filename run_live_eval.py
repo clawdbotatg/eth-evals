@@ -180,8 +180,9 @@ def run_one(target, task, mode="agent"):
         return None                      # task only makes sense for an agent
     prefix = CLOSED_PREFIX if mode == "closed" else PROMPT_PREFIX
     prompt = prefix + task["prompt"] + PROMPT_SUFFIX
+    usage = {}
     try:
-        resp, _ = target.ask(prompt, 0)
+        resp, usage = target.ask(prompt, 0)
         truth = truth_value(task)  # computed right after the agent answers
         ok, detail = grade_live(task, resp, truth)
         err = None
@@ -189,7 +190,7 @@ def run_one(target, task, mode="agent"):
         resp, ok, detail, err = "", False, f"ERROR: {str(e)[:150]}", True
     return {"id": task["id"], "category": task["category"], "pass": bool(ok),
             "detail": detail, "response": (resp or "")[:2000],
-            "latency_s": round(time.time() - t0, 1)}
+            "latency_s": round(time.time() - t0, 1), "usage": usage}
 
 
 def main():
