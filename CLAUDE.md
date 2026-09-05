@@ -235,6 +235,11 @@ score) and refuses to save a run with unreached tasks unless `--save-partial`.
   different things (can it produce the right artifact vs can it operate).
   Neither subsumes the other yet; a future consolidation should keep both
   grading modes but share the manifest/reporting layer.
+- **`ETHSKILLS_EVALS.md`** (2026-09-04) is a read of BuidlGuidl's
+  ethskills-evals repo: the with/without-skill A/B for every ethskills skill,
+  LLM-judged. It IS the deferred A/B below, done with a weaker grader. The doc
+  has their findings, how they differ from us, and a 3-step plan to run the
+  A/B on our exec scenarios. Read it before building that.
 - **Deferred on purpose** (see the "do it" conversation, 2026-08-19):
   capability gates and track weights (too few execution tasks to be stable —
   report the score vector instead), and the ethskills with/without A/B
